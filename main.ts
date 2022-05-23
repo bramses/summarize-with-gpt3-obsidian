@@ -1,5 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, request } from 'obsidian';
-import { EditorExtensions } from "editor-enhancements";
+import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, request } from 'obsidian';
 
 
 // Remember to rename these classes and interfaces!
@@ -14,58 +13,6 @@ const DEFAULT_SETTINGS: GPT3SummarizerSettings = {
 
 export default class GPT3Summarizer extends Plugin {
 	settings: GPT3SummarizerSettings;
-
-
-	// // Custom hashid by @shabegom
-	// private createBlockHash(): string {
-	// 	let result = "";
-	// 	const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
-	// 	const charactersLength = characters.length;
-	// 	for (let i = 0; i < 4; i++) {
-	// 		result += characters.charAt(
-	// 			Math.floor(Math.random() * charactersLength)
-	// 		);
-	// 	}
-	// 	return result;
-	// }
-
-	// async conveyorBelt(url = "") {
-	// 	// todo
-	// }
-
-	// async convertUrlToTitledLink(editor: Editor, url: string): Promise<void> {
-	// 	// Generate a unique id for find/replace operations for the title.
-	// 	const pasteId = `Fetching Answer#${this.createBlockHash()}`;
-
-	// 	// Instantly paste so you don't wonder if paste is broken
-	// 	editor.replaceSelection(`${pasteId}`);
-
-	// 	// Fetch title from site, replace Fetching Title with actual title
-	// 	const stackOverflowMarkdown = await this.conveyorBelt(url);
-
-	// 	const text = editor.getValue();
-
-	// 	const start = text.indexOf(pasteId);
-	// 	if (start < 0) {
-	// 		console.log(
-	// 			`Unable to find text "${pasteId}" in current editor, bailing out; link ${url}`
-	// 		);
-	// 	} else {
-	// 		const end = start + pasteId.length;
-	// 		const startPos = EditorExtensions.getEditorPositionFromIndex(
-	// 			text,
-	// 			start
-	// 		);
-	// 		const endPos = EditorExtensions.getEditorPositionFromIndex(
-	// 			text,
-	// 			end
-	// 		);
-
-	// 		editor.replaceRange(stackOverflowMarkdown, startPos, endPos);
-	// 	}
-	// }
-
-
 
 	async callOpenAIAPI(text: string, prompt: string) {
 		const response = await request({
@@ -97,7 +44,6 @@ export default class GPT3Summarizer extends Plugin {
 			id: 'summarize',
 			name: 'Summarize',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				// editor.replaceSelection('GPT3Summarizer Editor Command');
 				const text = editor.getSelection();
 				const summaryPrompt = `Summarize this text.\n\nText:\n${text}\n\nSummary:\n`
 				const summary = await this.callOpenAIAPI(editor.getSelection(), summaryPrompt);
@@ -106,25 +52,7 @@ export default class GPT3Summarizer extends Plugin {
 				editor.replaceSelection(`# ${title.trim()}\n\n## Summary:\n${summary}\n\n## Original Text:\n\n${editor.getSelection()}`);
 			}
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new GPT3SummarizerModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
+		
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new GPT3SummarizerTab(this.app, this));
@@ -140,22 +68,6 @@ export default class GPT3Summarizer extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class GPT3SummarizerModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
 	}
 }
 
