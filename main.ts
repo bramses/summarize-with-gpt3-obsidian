@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, request } from 'obsidian';
+import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, request, MetadataCache } from 'obsidian';
 
 
 // Remember to rename these classes and interfaces!
@@ -38,6 +38,16 @@ export default class GPT3Summarizer extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// todo embedding stuff
+		// const file = this.app.workspace.getActiveFile()
+		// console.log(file);
+		// const content = await this.app.vault.read(file);
+		// const sections = this.app.metadataCache.getCache('Daily/2022-06-03.md').sections;
+		// const lists:string[] = []
+		// sections.filter(section => section.type === 'list').forEach(section => {
+		// 	lists.push(content.slice(section.position.start.offset, section.position.end.offset))
+		// })
+		// console.log(lists);
 		
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
@@ -45,11 +55,13 @@ export default class GPT3Summarizer extends Plugin {
 			name: 'Summarize',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				const text = editor.getSelection();
-				const summaryPrompt = `Summarize this text.\n\nText:\n${text}\n\nSummary:\n`
+				const summaryPrompt = `Summarize this text into one tweet.\n\nText:\n${text}\n\nSummary:\n`
 				const summary = await this.callOpenAIAPI(editor.getSelection(), summaryPrompt);
+				const tagsPrompt = `Summarize this text into a comma separated list of tags.\n\nText:\n${text}\n\nTags:\n`
+				const tags = await this.callOpenAIAPI(editor.getSelection(), tagsPrompt);
 				const titlePrompt = `Suggest a one line title for the following text.\n\nText:\n${text}\n\nTitle:\n`
 				const title = await this.callOpenAIAPI(editor.getSelection(), titlePrompt);
-				editor.replaceSelection(`# ${title.trim()}\n\n## Summary:\n${summary}\n\n## Original Text:\n\n${editor.getSelection()}`);
+				editor.replaceSelection(`# ${title.trim()}\n\n## Tags:\n${tags}\n\n## Summary:\n${summary}\n\n## Original Text:\n\n${editor.getSelection()}`);
 			}
 		});
 		
