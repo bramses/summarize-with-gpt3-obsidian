@@ -60,8 +60,8 @@ export default class GPT3Summarizer extends Plugin {
 				}
 				const titlePrompt = `Suggest a one line title for the following text.\n\nText:\n${text}\n\nTitle:\n`
 				const title = await this.callOpenAIAPI(titlePrompt);
-				
-				editor.replaceSelection(`# ${title.trim()}\n\n## ${this.settings.tagToggle ? `Tags:\n${tags}` : '' }\n\n## Summary:\n${summary}\n\n${this.settings.keepOriginal ? `## Original Text:\n\n${editor.getSelection()}` : '' }}`);
+
+				editor.replaceSelection(`# ${title.trim()}${this.settings.tagToggle ? `\n\n## Tags:\n${tags}` : '' }\n\n## Summary:\n${summary}\n\n${this.settings.keepOriginal ? `## Original Text:\n\n${editor.getSelection()}` : '' }}`);
 			}
 		});
 		
