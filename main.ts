@@ -5,18 +5,24 @@ import { App, Editor, MarkdownView, Notice, Plugin, PluginSettingTab, Setting, r
 
 interface GPT3SummarizerSettings {
 	apiKey: string;
+	engine: string;
+	tagToggle: boolean;
+	keepOriginal: boolean;
 }
 
 const DEFAULT_SETTINGS: GPT3SummarizerSettings = {
-	apiKey: 'default'
+	apiKey: 'default',
+	engine: 'text-davinci-003',
+	tagToggle: true,
+	keepOriginal: true
 }
 
 export default class GPT3Summarizer extends Plugin {
 	settings: GPT3SummarizerSettings;
 
-	async callOpenAIAPI(text: string, prompt: string) {
+	async callOpenAIAPI(prompt: string, engine = 'text-davinci-003') {
 		const response = await request({
-			url: 'https://api.openai.com/v1/engines/text-davinci-002/completions',
+			url: `https://api.openai.com/v1/engines/${engine}/completions`,
 			method: 'POST',
 			headers: {
 				'Authorization': `Bearer ${this.settings.apiKey}`,
@@ -37,31 +43,25 @@ export default class GPT3Summarizer extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		const engine = this.settings.engine;
 
-		// todo embedding stuff
-		// const file = this.app.workspace.getActiveFile()
-		// console.log(file);
-		// const content = await this.app.vault.read(file);
-		// const sections = this.app.metadataCache.getCache('Daily/2022-06-03.md').sections;
-		// const lists:string[] = []
-		// sections.filter(section => section.type === 'list').forEach(section => {
-		// 	lists.push(content.slice(section.position.start.offset, section.position.end.offset))
-		// })
-		// console.log(lists);
-		
-		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'summarize',
 			name: 'Summarize',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				const text = editor.getSelection();
 				const summaryPrompt = `Summarize this text into one tweet.\n\nText:\n${text}\n\nSummary:\n`
-				const summary = await this.callOpenAIAPI(editor.getSelection(), summaryPrompt);
-				const tagsPrompt = `Summarize this text into a comma separated list of tags.\n\nText:\n${text}\n\nTags:\n`
-				const tags = await this.callOpenAIAPI(editor.getSelection(), tagsPrompt);
+				const summary = await this.callOpenAIAPI(summaryPrompt, engine);
+				let tags = '';
+				
+				if (this.settings.tagToggle) {
+					const tagsPrompt = `Summarize this text into a comma separated list of tags.\n\nText:\n${text}\n\nTags:\n`
+					tags = await this.callOpenAIAPI(tagsPrompt, engine);
+				}
 				const titlePrompt = `Suggest a one line title for the following text.\n\nText:\n${text}\n\nTitle:\n`
-				const title = await this.callOpenAIAPI(editor.getSelection(), titlePrompt);
-				editor.replaceSelection(`# ${title.trim()}\n\n## Tags:\n${tags}\n\n## Summary:\n${summary}\n\n## Original Text:\n\n${editor.getSelection()}`);
+				const title = await this.callOpenAIAPI(titlePrompt);
+				
+				editor.replaceSelection(`# ${title.trim()}\n\n## ${this.settings.tagToggle ? `Tags:\n${tags}` : '' }\n\n## Summary:\n${summary}\n\n${this.settings.keepOriginal ? `## Original Text:\n\n${editor.getSelection()}` : '' }}`);
 			}
 		});
 		
@@ -109,5 +109,49 @@ class GPT3SummarizerTab extends PluginSettingTab {
 					this.plugin.settings.apiKey = value;
 					await this.plugin.saveSettings();
 				}));
+
+		// dropdown setting for choosing engine
+		new Setting(containerEl)
+			.setName('Engine')
+			.setDesc('Choose the engine to use for summarization')
+			.addDropdown(dropdown => dropdown
+				.addOption('text-davinci-003', 'Davinci')
+				.addOption('text-curie-001', 'Curie')
+				.addOption('text-babbage-001', 'Babbage')
+				.addOption('text-ada-001', 'Ada')
+				.setValue(this.plugin.settings.engine)
+				.onChange(async (value) => {
+					console.log('Engine: ' + value);
+					this.plugin.settings.engine = value;
+					await this.plugin.saveSettings();
+				}
+			));
+
+		// toggle for whether to add tags
+		new Setting(containerEl)
+			.setName('Add Tags')
+			.setDesc('Add tags to the summary')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.tagToggle)
+				.onChange(async (value) => {
+					console.log('Tag Toggle: ' + value);
+					this.plugin.settings.tagToggle = value;
+					await this.plugin.saveSettings();
+				}
+			));
+
+		// toggle for whether to keep original text
+		new Setting(containerEl)
+			.setName('Keep Original Text')
+			.setDesc('Keep the original text in the summary')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.keepOriginal)
+				.onChange(async (value) => {
+					console.log('Keep Original: ' + value);
+					this.plugin.settings.keepOriginal = value;
+					await this.plugin.saveSettings();
+				}
+			));
+
 	}
 }
