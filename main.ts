@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS: GPT3SummarizerSettings = {
 export default class GPT3Summarizer extends Plugin {
 	settings: GPT3SummarizerSettings;
 
-	async callOpenAIAPI(prompt: string, engine = 'text-davinci-003') {
+	async callOpenAIAPI(prompt: string, engine = 'text-davinci-003', max_tokens = 250, temperature = 0.3, best_of = 3) {
 		const response = await request({
 			url: `https://api.openai.com/v1/engines/${engine}/completions`,
 			method: 'POST',
@@ -31,9 +31,9 @@ export default class GPT3Summarizer extends Plugin {
 			contentType: 'application/json',
 			body: JSON.stringify({
 				"prompt": prompt,
-				"max_tokens": 250,
-				"temperature": 0.3,
-				"best_of": 3
+				"max_tokens": max_tokens,
+				"temperature": temperature,
+				"best_of": best_of,
 			})
 		});
 
@@ -61,9 +61,73 @@ export default class GPT3Summarizer extends Plugin {
 				const titlePrompt = `Suggest a one line title for the following text.\n\nText:\n${text}\n\nTitle:\n`
 				const title = await this.callOpenAIAPI(titlePrompt);
 
-				editor.replaceSelection(`# ${title.trim()}${this.settings.tagToggle ? `\n\n## Tags:\n${tags}` : '' }\n\n## Summary:\n${summary}\n\n${this.settings.keepOriginal ? `## Original Text:\n\n${editor.getSelection()}` : '' }}`);
+				editor.replaceSelection(`# ${title.trim()}${this.settings.tagToggle ? `\n\n## Tags:\n${tags}` : '' }\n\n## Summary:\n${summary}\n\n${this.settings.keepOriginal ? `## Original Text:\n\n${editor.getSelection()}` : '' }`);
 			}
 		});
+
+	   // add a command to summarize text and add it to frontmatter as excerpt
+		this.addCommand({
+			id: 'summarize-to-frontmatter',
+			name: 'Add Excerpt to Frontmatter',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+
+				const metadataMenuPlugin = this.app.plugins.plugins["metadata-menu"].api;
+				if (!metadataMenuPlugin) {
+					new Notice('Metadata Menu plugin not found');
+					return;
+				}
+
+				const activeFile = view.file;
+				
+				if (!activeFile) {
+					new Notice('No file open');
+					return;
+				}
+
+
+				const { fileFields } = app.plugins.plugins["metadata-menu"].api;
+				const { postValues } = app.plugins.plugins["metadata-menu"].api;
+
+
+				const editField = async (file, yamlKey, newValue) => {
+					var currentFields = await fileFields(activeFile, yamlKey)
+					var currentValue = currentFields[yamlKey]["value"]
+				   
+					var fieldsPayload = [
+						{
+							name: yamlKey,
+							payload: {
+								value: newValue
+							}
+						},
+					];
+					postValues(file, fieldsPayload)
+				}
+
+				const text = editor.getSelection();
+				const summaryPrompt = `Summarize this text in first person format (using "I"):.\n\nText:\n${text}\n\nSummary:\n`
+				const summary = await this.callOpenAIAPI(summaryPrompt, engine);
+
+				await editField(activeFile, "excerpt", summary.trim());
+				// new Notice('Excerpt added to frontmatter');
+			}
+		});
+
+		// outline > complete sentences
+		this.addCommand({
+			id: 'outline-to-complete-sentences',
+			name: 'Outline to Complete Sentences',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const text = editor.getSelection();
+				const sentencesPrompt = `Convert this bulleted outline into complete sentence English (maintain the voice and styling (use bold, links, headers and italics Markdown where appropriate)). Each top level bullet is a new paragraph/section. Sub bullets go within the same paragraph. Convert shorthand words into full words.\n\nOutline:\n${text}\n\nComplete Sentences Format:\n`
+				const loading = this.addStatusBarItem()
+				loading.setText('Loading...');
+				const sentences = await this.callOpenAIAPI(sentencesPrompt, engine, 1000);
+				editor.replaceSelection(`${this.settings.keepOriginal ? `${editor.getSelection()}` : '' }\n\n${sentences}`);
+				loading.setText('');
+			}
+		});
+		
 		
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -81,6 +145,8 @@ export default class GPT3Summarizer extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	
 }
 
 class GPT3SummarizerTab extends PluginSettingTab {
