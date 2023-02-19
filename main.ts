@@ -124,12 +124,11 @@ export default class GPT3Summarizer extends Plugin {
 				const loading = this.addStatusBarItem();
 				loading.setText("Loading...");
 				const text = editor.getSelection();
-				const summaryPrompt = `Summarize this text in the length of a tweet (280 chars) in first person format (using "I"):.\n\nText:\n${text}\n\nSummary:\n`;
+				const summaryPrompt = `Summarize this text into one or two sentences in first person format (using "I"):.\n\nText:\n${text}\n\nSummary:\n`;
 				const summary = await this.callOpenAIAPI(summaryPrompt, engine, 100);
 
 				await editField(activeFile, "excerpt", summary.trim());
 				loading.setText("");
-				// new Notice('Excerpt added to frontmatter');
 			},
 		});
 
