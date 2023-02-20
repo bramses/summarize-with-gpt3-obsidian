@@ -127,7 +127,7 @@ export default class GPT3Summarizer extends Plugin {
 				const summaryPrompt = `Summarize this text into one or two sentences in first person format (using "I"):.\n\nText:\n${text}\n\nSummary:\n`;
 				const summary = await this.callOpenAIAPI(summaryPrompt, engine, 100);
 
-				await editField(activeFile, "excerpt", summary.trim());
+				await editField(activeFile, "excerpt", summary.trim().replace(/\n/g, " "));
 				loading.setText("");
 			},
 		});
