@@ -69,6 +69,8 @@ export default class GPT3Summarizer extends Plugin {
 				const summary = await this.callOpenAIAPI(summaryPrompt, engine);
 				let tags = "";
 
+				console.log(this.settings.tagToggle);
+
 				if (this.settings.tagToggle) {
 					const tagsPrompt = `Summarize this text into a comma separated list of tags.\n\nText:\n${text}\n\nTags:\n`;
 					tags = await this.callOpenAIAPI(tagsPrompt, engine);
